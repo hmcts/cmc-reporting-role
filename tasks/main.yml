@@ -1,0 +1,25 @@
+---
+
+- name: 'Ensure dependencies are present'
+  yum:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - cronie
+    - mailx
+
+- name: 'Install payment reconciliation script'
+  template:
+    src: payment-reconciliation.sh.j2
+    dest: '/bin/payment-reconciliation'
+    owner: root
+    group: root
+    mode: 0755
+
+- name: 'Install payment reconciliation cron job'
+  cron:
+    user: 'postgres'
+    name: 'payment reconciliation'
+    minute: '30'
+    hour: '11'
+    job: '/bin/payment-reconciliation'
