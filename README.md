@@ -1,2 +1,17 @@
-# payment-reconciliation-role
-Role for adding payment reconciliation script
+Payment reconciliation role
+=========
+
+Automates adding a script for payment reconciliation
+
+License
+-------
+
+MIT
+
+Testing
+------------------
+
+```
+$ molecule test
+```
+
