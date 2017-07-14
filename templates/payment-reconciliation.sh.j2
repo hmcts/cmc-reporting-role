@@ -8,7 +8,7 @@ TO_ADDRESS={{ payment_reconciliation_to_address }}
 mkdir -p ${OUTPUT_DIR}
 
 echo "Running payment reconciliation query"
-psql -d claimstore -c "COPY(SELECT (string_to_array(json_extract_path_text(claim::json, 'claimant', 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,reference_number AS case_reference,json_extract_path_text(claim::json, 'claimant', 'payment', 'reference') AS payment_reference,created_on AS case_created_date,to_timestamp((json_extract_path_text(claim::json, 'claimant', 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,'gov pay' AS payment_channel,('£' || (round(json_extract_path_text(claim::json, 'claimant', 'payment', 'amount')::NUMERIC / 100, 2))) AS amount FROM claim) TO STDOUT WITH CSV HEADER" > ${OUTPUT_DIR}/$(date +%F).csv
+psql -d claimstore -c "COPY(SELECT (string_to_array(json_extract_path_text(claim::json, 'claimant', 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,reference_number AS case_reference,json_extract_path_text(claim::json, 'claimant', 'payment', 'reference') AS payment_reference,created_on AS case_created_date,to_timestamp((json_extract_path_text(claim::json, 'claimant', 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,'gov pay' AS payment_channel,('£' || (round(json_extract_path_text(claim::json, 'claimant', 'payment', 'amount')::NUMERIC / 100, 2))) AS amount FROM claim WHERE created_on >= CURRENT_DATE AND created_on < CURRENT_DATE + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER" > ${OUTPUT_DIR}/$(date +%F).csv
 echo "Finished payment reconciliation query, there was $(expr $(wc -l $(date +%F).csv | awk '{print $1}') - 1) payments today"
 
 echo "Sending email with payment reconciliation results to: ${TO_ADDRESS}"
