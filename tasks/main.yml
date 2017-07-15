@@ -20,6 +20,6 @@
   cron:
     user: 'postgres'
     name: 'payment reconciliation'
+    hour: '23'
     minute: '30'
-    hour: '11'
     job: '/bin/payment-reconciliation'
