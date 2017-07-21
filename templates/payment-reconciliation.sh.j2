@@ -3,15 +3,37 @@
 
 set -ue
 
+# Default to yesterday so we get a full days reconciliation
+DEFAULT_DATE=$(date +%F --date '-1 days')
+
+DATE_TO_RECONCILE=${1:-${DEFAULT_DATE}}
+
 OUTPUT_DIR={{ payment_reconciliation_output_directory }}
 TO_ADDRESS={{ payment_reconciliation_to_address }}
 mkdir -p ${OUTPUT_DIR}
 
 echo "Running payment reconciliation query"
-psql -d claimstore -c "COPY(SELECT (string_to_array(json_extract_path_text(claim::json, 'claimant', 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,reference_number AS case_reference,json_extract_path_text(claim::json, 'claimant', 'payment', 'reference') AS payment_reference,created_on AS case_created_date,to_timestamp((json_extract_path_text(claim::json, 'claimant', 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,'gov pay' AS payment_channel,('£' || (round(json_extract_path_text(claim::json, 'claimant', 'payment', 'amount')::NUMERIC / 100, 2))) AS amount FROM claim WHERE created_on >= CURRENT_DATE AND created_on < CURRENT_DATE + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER" > ${OUTPUT_DIR}/$(date +%F).csv
-echo "Finished payment reconciliation query, there was $(expr $(wc -l $(date +%F).csv | awk '{print $1}') - 1) payments today"
+QUERY=$(cat <<EOF
+COPY(
+    SELECT
+        (string_to_array(json_extract_path_text(claim::json, 'claimant', 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,
+        reference_number AS case_reference,
+        json_extract_path_text(claim::json, 'claimant', 'payment', 'reference') AS payment_reference,
+        created_on AS case_created_date,
+        to_timestamp((json_extract_path_text(claim::json, 'claimant', 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,
+        'gov pay' AS payment_channel,
+        ('£' || (round(json_extract_path_text(claim::json, 'claimant', 'payment', 'amount')::NUMERIC / 100, 2))) AS amount
+    FROM claim WHERE created_on >= date '${DATE_TO_RECONCILE}'
+    AND created_on < date '${DATE_TO_RECONCILE}' + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER
+EOF
+)
+psql -d claimstore -c "${QUERY}"  > ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv
+
+PAYMENT_COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv | wc -l)
+
+echo "Finished payment reconciliation query, there was ${PAYMENT_COUNT} payments on ${DATE_TO_RECONCILE}"
 
 echo "Sending email with payment reconciliation results to: ${TO_ADDRESS}"
-echo -e "Hi\nPlease find attached todays payment reconciliation.\nThere was $(expr $(wc -l $(date +%F).csv | awk '{print $1}') - 1) payments" | mail -s "Payment reconciliation $(date +%F)" -a ${OUTPUT_DIR}/$(date +%F).csv -r "noreply@reform.hmcts.net (Money Claim Payments)" ${TO_ADDRESS}
+echo -e "Hi\nPlease find attached payment reconciliation report for ${DATE_TO_RECONCILE}.\nThere was ${PAYMENT_COUNT} payment(s)" | mail -s "Payment reconciliation ${DATE_TO_RECONCILE}" -a ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv -r "noreply@reform.hmcts.net (Money Claim Payments)" ${TO_ADDRESS}
 echo "Payment reconciliation results sent"
 
