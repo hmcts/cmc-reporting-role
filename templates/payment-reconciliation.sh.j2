@@ -12,7 +12,7 @@ OUTPUT_DIR={{ payment_reconciliation_output_directory }}
 TO_ADDRESS={{ payment_reconciliation_to_address }}
 CC_ADDRESS={{ payment_reconciliation_cc_address | default('') }}
 
-if [[ -z "${CC_ADDRESS// }" ]]; then
+if [[ -z "${CC_ADDRESS}" ]]; then
     CC_COMMAND=""
     CC_LOG_MESSAGE=""
 else
