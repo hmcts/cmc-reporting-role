@@ -28,12 +28,12 @@ COPY(
         (string_to_array(json_extract_path_text(claim::json, 'claimant', 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,
         reference_number AS case_reference,
         json_extract_path_text(claim::json, 'claimant', 'payment', 'reference') AS payment_reference,
-        created_on AS case_created_date,
+        created_at AS case_created_date,
         to_timestamp((json_extract_path_text(claim::json, 'claimant', 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,
         'gov pay' AS payment_channel,
         ('£' || (round(json_extract_path_text(claim::json, 'claimant', 'payment', 'amount')::NUMERIC / 100, 2))) AS amount
-    FROM claim WHERE created_on >= date '${DATE_TO_RECONCILE}'
-    AND created_on < date '${DATE_TO_RECONCILE}' + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER
+    FROM claim WHERE created_at >= date '${DATE_TO_RECONCILE}'
+    AND created_at < date '${DATE_TO_RECONCILE}' + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${QUERY}"  > ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv
