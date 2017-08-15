@@ -22,4 +22,4 @@
     name: 'payment reconciliation'
     hour: '0'
     minute: '30'
-    job: '/bin/payment-reconciliation'
+    job: '/bin/payment-reconciliation >> /tmp/payment-reconciliation.log 2>&1'

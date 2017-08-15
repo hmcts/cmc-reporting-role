@@ -11,6 +11,43 @@ DATE_TO_RECONCILE=${1:-${DEFAULT_DATE}}
 OUTPUT_DIR={{ payment_reconciliation_output_directory }}
 TO_ADDRESS={{ payment_reconciliation_to_address }}
 CC_ADDRESS={{ payment_reconciliation_cc_address | default('') }}
+FAILURE_ADDRESS={{ payment_reconciliation_failure_address }}
+
+function log() {
+  echo $(date --rfc-3339=seconds)" ${1}"
+}
+
+function errorHandler() {
+  local payment_failed_error="Payment reconciliation report failed for ${DATE_TO_RECONCILE}"
+  local environment=$(getEnvironment)
+  log "${payment_failed_error}"
+  echo -e "Hi\n${payment_failed_error} in ${environment}" | mail -s "Payment reconciliation ${DATE_TO_RECONCILE} failed in ${environment}" -r "noreply@reform.hmcts.net (Money Claim Payments)" ${FAILURE_ADDRESS}
+}
+
+function getEnvironment() {
+    case $(hostname | awk '{print tolower($0)}') in
+    betadeva*)
+      ENV=Dev
+      ;;
+    betadevb*)
+      ENV=Test
+      ;;
+    betademo*)
+      ENV=Demo
+      ;;
+    betapreprod*)
+      ENV=Staging
+      ;;
+    betaprod*)
+      ENV=Production
+      ;;
+      *)
+      log 'Unknown environment' || false
+    esac
+    echo ${ENV}
+}
+
+trap errorHandler ERR
 
 if [[ -z "${CC_ADDRESS}" ]]; then
     CC_COMMAND=""
@@ -21,7 +58,7 @@ else
 fi
 mkdir -p ${OUTPUT_DIR}
 
-echo "Running payment reconciliation query"
+log "Running payment reconciliation query"
 QUERY=$(cat <<EOF
 COPY(
     SELECT
@@ -40,9 +77,8 @@ psql -d claimstore -c "${QUERY}"  > ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv
 
 PAYMENT_COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv | wc -l)
 
-echo "Finished payment reconciliation query, there was ${PAYMENT_COUNT} payments on ${DATE_TO_RECONCILE}"
+log "Finished payment reconciliation query, there was ${PAYMENT_COUNT} payments on ${DATE_TO_RECONCILE}"
 
-echo "Sending email with payment reconciliation results to: ${TO_ADDRESS} ${CC_LOG_MESSAGE}"
+log "Sending email with payment reconciliation results to: ${TO_ADDRESS} ${CC_LOG_MESSAGE}"
 echo -e "Hi\nPlease find attached payment reconciliation report for ${DATE_TO_RECONCILE}.\nThere was ${PAYMENT_COUNT} payment(s)" | mail -s "Payment reconciliation ${DATE_TO_RECONCILE}" -a ${OUTPUT_DIR}/${DATE_TO_RECONCILE}.csv -r "noreply@reform.hmcts.net (Money Claim Payments)" ${CC_COMMAND} ${TO_ADDRESS}
-echo "Payment reconciliation results sent"
-
+log "Payment reconciliation results sent"

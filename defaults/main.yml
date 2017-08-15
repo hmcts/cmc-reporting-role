@@ -2,3 +2,4 @@
 # defaults file for payment-reconciliation-role
 payment_reconciliation_output_directory: '/tmp/payment-reconciliation'
 payment_reconciliation_to_address: 'noreply@example.com'
+payment_reconciliation_failure_address: 'noreply@example.com'
