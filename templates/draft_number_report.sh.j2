@@ -1,0 +1,89 @@
+#!/bin/bash
+# vi:syntax=sh
+
+set -ue
+
+# Default to yesterday so we get a full days reconciliation
+DEFAULT_DATE=$(date +%F --date '-1 days')
+
+DATE_TO_RECONCILE=${1:-${DEFAULT_DATE}}
+OUTPUT_FILE_NAME=DraftCountReport-$(date +%F).csv
+
+OUTPUT_DIR={{ reporting_output_directory }}
+TO_ADDRESS={{ draft_claim_report_to_address }}
+CC_ADDRESS={{ draft_claim_report_cc_address | default('') }}
+FAILURE_ADDRESS={{ reporting_failure_address }}
+
+function log() {
+  echo $(date --rfc-3339=seconds)" ${1}"
+}
+
+function errorHandler() {
+  local failed_error="Draft weekly report failed for ${DATE_TO_RECONCILE}"
+  local environment=$(getEnvironment)
+  log "${failed_error}"
+  echo -e "Hi\n${failed_error} in ${environment}" | mail -s "Draft weekly report ${DATE_TO_RECONCILE} failed in ${environment}" -r "noreply@reform.hmcts.net (Money Claim reporting)" ${FAILURE_ADDRESS}
+}
+
+function getEnvironment() {
+    case $(hostname | awk '{print tolower($0)}') in
+    betadeva*)
+      ENV=Dev
+      ;;
+    betadevb*)
+      ENV=Test
+      ;;
+    betademo*)
+      ENV=Demo
+      ;;
+    betapreprod*)
+      ENV=Staging
+      ;;
+    betaprod*)
+      ENV=Production
+      ;;
+      *)
+      log 'Unknown environment' || false
+    esac
+    echo ${ENV}
+}
+
+trap errorHandler ERR
+
+if [[ -z "${CC_ADDRESS}" ]]; then
+    CC_COMMAND=""
+    CC_LOG_MESSAGE=""
+else
+    CC_COMMAND="-c ${CC_ADDRESS}"
+    CC_LOG_MESSAGE="copied to: ${CC_ADDRESS}"
+fi
+mkdir -p ${OUTPUT_DIR}
+
+log "Running draft count report query"
+QUERY=$(cat <<EOF
+COPY(
+    SELECT
+      SUM(CASE WHEN document_type = 'ccj'
+        THEN 1
+          ELSE 0 END) AS ccj,
+      SUM(CASE WHEN document_type = 'claim'
+        THEN 1
+          ELSE 0 END) AS claim,
+      SUM(CASE WHEN document_type = 'legalClaim'
+        THEN 1
+          ELSE 0 END) AS legalClaim,
+      SUM(CASE WHEN document_type = 'response'
+        THEN 1
+          ELSE 0 END) AS response
+    FROM draft_document) TO STDOUT WITH CSV HEADER
+EOF
+)
+psql -d draftstore -c "${QUERY}"  > ${OUTPUT_DIR}/${OUTPUT_FILE_NAME}
+
+COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${OUTPUT_FILE_NAME} | wc -l)
+
+log "Finished weekly draft report query, there was ${COUNT} drafts on ${DATE_TO_RECONCILE}"
+
+log "Sending email with weekly draft report to: ${TO_ADDRESS} ${CC_LOG_MESSAGE}"
+echo -e "Hi\nPlease find attached weekly draft report for ${DATE_TO_RECONCILE}." | mail -s "Weekly draft count report ${DATE_TO_RECONCILE}" -a ${OUTPUT_DIR}/${OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${CC_COMMAND} ${TO_ADDRESS}
+log "Draft count report results sent"

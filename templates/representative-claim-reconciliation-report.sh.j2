@@ -1,0 +1,92 @@
+#!/bin/bash
+# vi:syntax=sh
+
+set -ue
+
+# Default to yesterday so we get a full days reconciliation
+DEFAULT_DATE=$(date +%F --date '-1 days')
+
+DATE_TO_RECONCILE=${1:-${DEFAULT_DATE}}
+OUTPUT_FILE_NAME=LegalRepClaimDailyReport-$(date +%F).csv
+
+OUTPUT_DIR={{ reporting_output_directory }}
+TO_ADDRESS={{ representative_claim_reconciliation_to_address }}
+CC_ADDRESS={{ representative_claim_reconciliation_cc_address | default('') }}
+FAILURE_ADDRESS={{ reporting_failure_address }}
+
+function log() {
+  echo $(date --rfc-3339=seconds)" ${1}"
+}
+
+function errorHandler() {
+  local error_message="Legal Rep Claim Reconciliation report failed for ${DATE_TO_RECONCILE}"
+  local environment=$(getEnvironment)
+  log "${error_message}"
+  echo -e "Hi\n${error_message} in ${environment}" | mail -s "FAILED (${environment}): Legal Rep reconciliation report for ${DATE_TO_RECONCILE}" -r "noreply@reform.hmcts.net (Money Claim reporting)" ${FAILURE_ADDRESS}
+}
+
+function getEnvironment() {
+    case $(hostname | awk '{print tolower($0)}') in
+    betadeva*)
+      ENV=Dev
+      ;;
+    betadevb*)
+      ENV=Test
+      ;;
+    betademo*)
+      ENV=Demo
+      ;;
+    betapreprod*)
+      ENV=Staging
+      ;;
+    betaprod*)
+      ENV=Production
+      ;;
+      *)
+      log 'Unknown environment' || false
+    esac
+    echo ${ENV}
+}
+
+trap errorHandler ERR
+
+if [[ -z "${CC_ADDRESS}" ]]; then
+    CC_COMMAND=""
+    CC_LOG_MESSAGE=""
+else
+    CC_COMMAND="-c ${CC_ADDRESS}"
+    CC_LOG_MESSAGE="copied to: ${CC_ADDRESS}"
+fi
+mkdir -p ${OUTPUT_DIR}
+
+log "Running legal rep claim reconciliation query"
+QUERY=$(cat <<EOF
+COPY(
+    SELECT
+        json_extract_path_text(claim::json, 'externalId')                   AS unique_id,
+        reference_number                                                    AS case_reference,
+        created_at                                                          AS case_created_date,
+        ('£' || (round(json_extract_path_text(claim::json, 'amount',
+         'lowerValue')::NUMERIC, 2)))                                       AS claim_value_min,
+        ('£' || (round(json_extract_path_text(claim::json, 'amount',
+        'higherValue')::NUMERIC, 2)))                                       AS claim_value_max,
+        json_extract_path_text(claim::json, 'feeAccountNumber')             AS fee_account,
+            ('£' || (round(json_extract_path_text(claim::json,
+            'feeAmountInPennies')::NUMERIC / 100, 2)))                      AS amount
+FROM claim
+WHERE reference_number LIKE '%LR%'
+    AND created_at >= date '${DATE_TO_RECONCILE}'
+    AND created_at < date '${DATE_TO_RECONCILE}' + INTERVAL '1 DAY'
+ORDER BY id)
+TO STDOUT WITH CSV HEADER
+EOF
+)
+psql -d claimstore -c "${QUERY}"  > ${OUTPUT_DIR}/${OUTPUT_FILE_NAME}
+
+COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${OUTPUT_FILE_NAME} | wc -l)
+
+log "Finished legal rep claim reconciliation query, there was ${COUNT} claims on ${DATE_TO_RECONCILE}"
+
+log "Sending email with legal rep claim reconciliation results to: ${TO_ADDRESS} ${CC_LOG_MESSAGE}"
+echo -e "Hi\nPlease find attached the legal rep claim daily report for ${DATE_TO_RECONCILE}.\nThere was ${COUNT} claim(s)" | mail -s "${DATE_TO_RECONCILE} - Legal rep claim daily report" -a ${OUTPUT_DIR}/${OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${CC_COMMAND} ${TO_ADDRESS}
+log "Legal rep claim reconciliation results sent"
