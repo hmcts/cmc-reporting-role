@@ -6,4 +6,4 @@
         name: postgres
 - hosts: all
   roles:
-    - role: payment-reconciliation-role
+    - role: reporting-role
