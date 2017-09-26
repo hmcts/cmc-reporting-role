@@ -1,6 +1,6 @@
 ---
-# defaults file for payment-reconciliation-role
-reporting_output_directory: '/tmp/payment-reconciliation'
+# defaults file for reporting-role
+reporting_output_directory: '/tmp/reporting'
 payment_reconciliation_to_address: 'noreply@example.com'
 reporting_failure_address: 'noreply@example.com'
 representative_claim_reconciliation_to_address: 'noreply@example.com'

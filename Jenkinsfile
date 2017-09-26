@@ -3,7 +3,7 @@
 @Library('Reform') _
 
 node {
-  ws('payment-reconciliation-role') { // This must be the name of the role otherwise ansible won't find the role
+  ws('reporting-role') { // This must be the name of the role otherwise ansible won't find the role
     try {
       wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
         stage('Checkout') {
