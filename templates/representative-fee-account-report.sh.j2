@@ -65,7 +65,7 @@ COPY(
 SELECT
   'CMC'                                                                                      AS site,
   json_extract_path_text(claim :: JSON, 'feeCode')                                           AS fee_id,
-  TO_CHAR(created_at, 'YYYY-MM-DD HH24-MI-SS')                                               AS transaction_date,
+  TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS')                                               AS transaction_date,
   json_extract_path_text(claim :: JSON, 'feeAccountNumber')                                  AS pba_customer_reference,
   ('£' || (round(
       json_extract_path_text(claim :: JSON, 'feeAmountInPennies') :: NUMERIC / 100, 2)))     AS fee_amount,
