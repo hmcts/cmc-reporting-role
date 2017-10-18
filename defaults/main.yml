@@ -2,6 +2,7 @@
 # defaults file for reporting-role
 reporting_output_directory: '/tmp/reporting'
 payment_reconciliation_to_address: 'noreply@example.com'
+service_manager_to_address: 'noreply@example.com'
 reporting_failure_address: 'noreply@example.com'
 representative_claim_reconciliation_to_address: 'noreply@example.com'
 draft_claim_report_to_address: 'noreply@example.com'
@@ -38,5 +39,14 @@ reporting_jobs:
       dest: '/bin/draft-count-report'
     schedule:
       hour: 2
+      minute: 0
+      weekday: 1
+  - name: 'service owner weekly report'
+    job: '/bin/service-owner-report >> /tmp/service-owner-report.log 2>&1'
+    template:
+      src: service-owner-report.sh.j2
+      dest: '/bin/service-owner-report'
+    schedule:
+      hour: 3
       minute: 0
       weekday: 1
