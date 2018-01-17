@@ -71,7 +71,7 @@ SELECT
       json_extract_path_text(claim :: JSON, 'feeAmountInPennies') :: NUMERIC / 100, 2)))     AS fee_amount,
   reference_number
   || ' '
-  || json_extract_path_text(claim :: JSON, 'claimant', 'representative', 'organisationName') AS case_information,
+  || json_extract_path_text(json_extract_path(claim :: JSON, 'claimants')->0, 'representative', 'organisationName') AS case_information,
   json_extract_path_text(claim :: JSON, 'externalReferenceNumber')                           AS payment_reference
 FROM claim
 WHERE reference_number LIKE '%LR%'
