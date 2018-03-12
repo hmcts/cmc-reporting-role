@@ -67,9 +67,9 @@ COPY(
         reference_number AS case_reference,
         json_extract_path_text(claim::json, 'payment', 'reference') AS payment_reference,
         created_at AS case_created_date,
-        to_timestamp((json_extract_path_text(claim::json, 'payment', 'date_created')::NUMERIC / 1000)) AS payment_date,
+        COALESCE(to_timestamp((json_extract_path_text(claim::json, 'payment', 'date_created')::NUMERIC / 1000)), created_at) AS payment_date,
         'gov pay' AS payment_channel,
-        ('£' || (round(json_extract_path_text(claim::json, 'payment', 'amount')::NUMERIC / 100, 2))) AS amount
+        ('£' || (round(json_extract_path_text(claim::json, 'feeAmountInPennies')::NUMERIC / 100, 2))) AS amount
     FROM claim WHERE reference_number like '%MC%'
     AND created_at >= date '${DATE_TO_RECONCILE}'
     AND created_at < date '${DATE_TO_RECONCILE}' + INTERVAL '1 DAY') TO STDOUT WITH CSV HEADER
