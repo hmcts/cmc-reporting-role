@@ -63,7 +63,7 @@ log "Running payment reconciliation query"
 QUERY=$(cat <<EOF
 COPY(
     SELECT
-        (string_to_array(json_extract_path_text(claim::json, 'payment', 'reference'), '\$\$\$'))[2] AS unique_id,
+        json_extract_path_text(claim::json, 'payment', 'reference') AS unique_id
         reference_number AS case_reference,
         json_extract_path_text(claim::json, 'payment', 'reference') AS payment_reference,
         created_at AS case_created_date,
