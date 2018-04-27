@@ -14,12 +14,6 @@ fi
 CLAIMS_OUTPUT_FILE_NAME=Claims_submitted_since_${REPORT_FROM_DATE}.csv
 RESPONSES_OUTPUT_FILE_NAME=Responses_submitted_since_${REPORT_FROM_DATE}.csv
 CCJS_OUTPUT_FILE_NAME=CCJs_submitted_since_${REPORT_FROM_DATE}.csv
-NOAT_OUTPUT_FILE_NAME=Total_number_settlement_attempted_since_${REPORT_FROM_DATE}.csv
-NSAT_OUTPUT_FILE_NAME=Total_number_settlement_reached_since_${REPORT_FROM_DATE}.csv
-TCAI_OUTPUT_FILE_NAME=Total_claim_amount_issued_since_${REPORT_FROM_DATE}.csv
-TFC_OUTPUT_FILE_NAME=Total_fees_collected_since_${REPORT_FROM_DATE}.csv
-CAFC_OUTPUT_FILE_NAME=Claims_against_fee_band_since_${REPORT_FROM_DATE}.csv
-CR_OUTPUT_FILE_NAME=Claim_reports_since_${REPORT_FROM_DATE}.csv
 
 OUTPUT_DIR={{ reporting_output_directory }}
 TO_ADDRESS={{ service_manager_to_address }}
@@ -184,101 +178,6 @@ psql -d claimstore -c "${CCJS_QUERY}" > "${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME}"
 CCJS_COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME} | wc -l)
 log "Finished submitted County Court Judgements query, there were ${CCJS_COUNT} CCJs submitted since ${REPORT_FROM_DATE}"
 
-log "Calculating numbers of offers attempted query"
-NOAT_QUERY=$(cat <<EOF
-COPY (
-    SELECT
-      count(*) AS total_offers_made
-    FROM
-      claim
-    WHERE
-      jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-      settlement IS NOT NULL AND
-      created_at > '${REPORT_FROM_DATE}'
-
-) TO STDOUT WITH CSV HEADER
-EOF
-)
-psql -d claimstore -c "${NOAT_QUERY}" > "${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME}"
-log "Finished calculating numbers  of offers attempted query"
-
-log "Calculating numbers of settlement agreed query"
-NSAT_QUERY=$(cat <<EOF
-COPY (
-    SELECT
-      count(*) AS total_settlements_agreed
-    FROM
-      claim
-    WHERE
-      jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-      settlement IS NOT NULL AND
-      settlement_reached_at IS NOT NULL AND
-      created_at > '${REPORT_FROM_DATE}'
-
-) TO STDOUT WITH CSV HEADER
-EOF
-)
-psql -d claimstore -c "${NSAT_QUERY}" > "${OUTPUT_DIR}/${NSAT_OUTPUT_FILE_NAME}"
-log "Finished calculating numbers of settlement agreed query"
-
-log "Calculating total value of claim amounts issued"
-TCAI_QUERY=$(cat <<EOF
-COPY (
-  WITH amounts AS (
-  SELECT
-    jsonb_array_elements( jsonb_extract_path(claim, 'amount') -> 'rows' ) AS amount_rows
-  FROM
-    claim
-  WHERE
-    jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-    created_at > '${REPORT_FROM_DATE}'
-  )
-	SELECT
-	  round(sum((amount_rows->>'amount')::DECIMAL), 2) AS total_claim_amount
-	FROM
-	  amounts
-) TO STDOUT WITH CSV HEADER
-EOF
-)
-psql -d claimstore -c "${TCAI_QUERY}" > "${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME}"
-log "Finished calculating total value of claim amounts issued since ${REPORT_FROM_DATE}"
-
-log "Calculate total value of fee's collected"
-TFC_QUERY=$(cat <<EOF
-COPY (
-	SELECT
-	  sum(round(jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100, 2) ) AS total_fees_collected
-	FROM
-	  claim
-	WHERE
-	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-	  created_at > '${REPORT_FROM_DATE}'
-) TO STDOUT WITH CSV HEADER
-EOF
-)
-psql -d claimstore -c "${TFC_QUERY}" > "${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME}"
-log "Finished total value of fee's collected since ${REPORT_FROM_DATE}"
-
-log "Calculating number of claims issued per fee band"
-CAFC_QUERY=$(cat <<EOF
-COPY (
-    SELECT
-       count(*) AS Total_claim,
-       jsonb_extract_path_text(claim, 'feeCode') AS fee_code
-    FROM
-      claim
-    WHERE
-	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-	  created_at > '${REPORT_FROM_DATE}'
-	  group by fee_code
-) TO STDOUT WITH CSV HEADER
-EOF
-)
-psql -d claimstore -c "${CAFC_QUERY}" > "${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME}"
-log "Finished number of claims issued per fee band since ${REPORT_FROM_DATE}"
-
-paste -d "," "${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${NSAT_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME}" >> "${OUTPUT_DIR}/${CR_OUTPUT_FILE_NAME}"
-
 log "Sending email with service owner report results to: ${TO_ADDRESS}"
-echo -e "Hi\nPlease find attached service owner report for ${REPORT_FROM_DATE}.\nThere were ${CLAIMS_COUNT} claims(s), ${RESPONSES_COUNT} response(s) and ${CCJS_COUNT} CCJs" | mail -s "Service owner report for ${REPORT_FROM_DATE}" -a ${OUTPUT_DIR}/${CLAIMS_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${RESPONSES_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME} -a "${OUTPUT_DIR}/${CR_OUTPUT_FILE_NAME}" -a ${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${TO_ADDRESS}
+echo -e "Hi\nPlease find attached service owner report for ${REPORT_FROM_DATE}.\nThere were ${CLAIMS_COUNT} claims(s), ${RESPONSES_COUNT} response(s) and ${CCJS_COUNT} CCJs" | mail -s "Service owner report for ${REPORT_FROM_DATE}" -a ${OUTPUT_DIR}/${CLAIMS_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${RESPONSES_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${TO_ADDRESS}
 log "Service owner report results sent"
