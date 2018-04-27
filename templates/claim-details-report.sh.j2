@@ -156,5 +156,5 @@ log "Finished number of claims issued per fee band since ${REPORT_FROM_DATE}"
 paste -d "," "${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${NSAT_OUTPUT_FILE_NAME}" "${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME}" >> "${OUTPUT_DIR}/${CR_OUTPUT_FILE_NAME}"
 
 log "Sending email with claim details report results to: ${TO_ADDRESS}"
-echo -e "Hi\nPlease find attached claim details report for ${REPORT_FROM_DATE}.\n" | mail -s "Service owner report for ${REPORT_FROM_DATE}" -a "${OUTPUT_DIR}/${CR_OUTPUT_FILE_NAME}" -a ${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${TO_ADDRESS}
+echo -e "Hi\nPlease find attached claim details report for ${REPORT_FROM_DATE}.\n" | mail -s "Claim details report for ${REPORT_FROM_DATE}" -a "${OUTPUT_DIR}/${CR_OUTPUT_FILE_NAME}" -a ${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME} -r "noreply@reform.hmcts.net (Money Claim reporting)" ${TO_ADDRESS}
 log "Claim details report results sent"
