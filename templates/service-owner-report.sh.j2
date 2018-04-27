@@ -78,10 +78,7 @@ COPY (
       id AS claim_id,
       submitter_email AS claimant_email,
       jsonb_extract_path(claim, 'claimants') -> 0 ->> 'name' AS claimant_name,
-      round(
-        jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100,
-        2
-      ) AS fee_paid,
+      round(jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100, 2) AS fee_paid,
       CASE WHEN jsonb_extract_path(claim, 'defendants') -> 0 ->> 'email' IS NOT NULL
         THEN 'yes'
         ELSE 'no'
@@ -204,7 +201,6 @@ EOF
 psql -d claimstore -c "${NOAT_QUERY}" > "${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME}"
 log "Finished calculating numbers  of offers attempted query"
 
-
 log "Calculating numbers  of settlement agreed query"
 NSAT_QUERY=$(cat <<EOF
 COPY (
@@ -229,9 +225,7 @@ TCAI_QUERY=$(cat <<EOF
 COPY (
   WITH amounts AS (
   SELECT
-    jsonb_array_elements(
-      jsonb_extract_path(claim, 'amount') -> 'rows'
-    ) AS amount_rows
+    jsonb_array_elements( jsonb_extract_path(claim, 'amount') -> 'rows' ) AS amount_rows
   FROM
     claim
   WHERE
@@ -242,49 +236,45 @@ COPY (
 	  round(sum((amount_rows->>'amount')::DECIMAL), 2) AS total_claim_amount
 	FROM
 	  amounts
-TO STDOUT WITH CSV HEADER
+) TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${TCAI_QUERY}" > "${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME}"
 log "Finished calculating total value of claim amounts issued since ${REPORT_FROM_DATE}"
 
-
 log "Calculate total value of fee's collected"
 TFC_QUERY=$(cat <<EOF
 COPY (
 	SELECT
-		  sum(round(
-			jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100, 2) ) AS total_fees_collected
+	  sum(round(jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100, 2) ) AS total_fees_collected
 	FROM
 	  claim
 	WHERE
-	jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-	created_at > '${REPORT_FROM_DATE}'
+	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
+	  created_at > '${REPORT_FROM_DATE}'
 TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${TFC_QUERY}" > "${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME}"
 log "Finished total value of fee's collected since ${REPORT_FROM_DATE}"
 
-
 log "Calculating number of claims issued per fee band"
 CAFC_QUERY=$(cat <<EOF
 COPY (
     SELECT
-        count(*) AS Total_claim,
-        jsonb_extract_path_text(claim, 'feeCode') AS fee_code
+       count(*) AS Total_claim,
+       jsonb_extract_path_text(claim, 'feeCode') AS fee_code
     FROM
       claim
     WHERE
-    jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-    created_at > '${REPORT_FROM_DATE}'
-    group by fee_code
+	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
+	  created_at > '${REPORT_FROM_DATE}'
+	  group by fee_code
 TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${CAFC_QUERY}" > "${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME}"
 log "Finished number of claims issued per fee band since ${REPORT_FROM_DATE}"
-
 
 log "Sending email with service owner report results to: ${TO_ADDRESS}"
 echo -e "Hi\nPlease find attached service owner report for ${REPORT_FROM_DATE}.\nThere were ${CLAIMS_COUNT} claims(s), ${RESPONSES_COUNT} response(s) and ${CCJS_COUNT} CCJs" | mail -s "Service owner report for ${REPORT_FROM_DATE}" -a ${OUTPUT_DIR}/${CLAIMS_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${RESPONSES_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${NSAT_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME} -a ${OUTPUT_DIR}/${TCAI_OUTPUT_FILE_NAME}-r "noreply@reform.hmcts.net (Money Claim reporting)" ${TO_ADDRESS}

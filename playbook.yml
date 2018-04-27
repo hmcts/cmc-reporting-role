@@ -1,9 +1,4 @@
 ---
 - hosts: all
-  tasks:
-    - name: 'Add postgres user (tests only)'
-      user:
-        name: postgres
-- hosts: all
   roles:
-    - role: reporting-role
+    - role: cmc-reporting-role
