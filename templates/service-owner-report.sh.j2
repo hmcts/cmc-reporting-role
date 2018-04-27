@@ -252,7 +252,7 @@ COPY (
 	WHERE
 	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
 	  created_at > '${REPORT_FROM_DATE}'
-TO STDOUT WITH CSV HEADER
+) TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${TFC_QUERY}" > "${OUTPUT_DIR}/${TFC_OUTPUT_FILE_NAME}"
@@ -270,7 +270,7 @@ COPY (
 	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
 	  created_at > '${REPORT_FROM_DATE}'
 	  group by fee_code
-TO STDOUT WITH CSV HEADER
+) TO STDOUT WITH CSV HEADER
 EOF
 )
 psql -d claimstore -c "${CAFC_QUERY}" > "${OUTPUT_DIR}/${CAFC_OUTPUT_FILE_NAME}"
