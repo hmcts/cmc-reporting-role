@@ -187,7 +187,7 @@ log "Calculating numbers  of offers attempted query"
 NOAT_QUERY=$(cat <<EOF
 COPY (
     SELECT
-      count(*) AS total_offer_tried
+      count(*) AS total_offers_made
     FROM
       claim
     WHERE
@@ -205,7 +205,7 @@ log "Calculating numbers  of settlement agreed query"
 NSAT_QUERY=$(cat <<EOF
 COPY (
     SELECT
-      count(*) AS total_settlement_agreed
+      count(*) AS total_settlements_agreed
     FROM
       claim
     WHERE
