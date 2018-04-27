@@ -50,3 +50,12 @@ reporting_jobs:
       hour: 3
       minute: 0
       weekday: 1
+  - name: 'claim details report'
+    job: '/bin/claim-details-report >> /tmp/claim-details-report.log 2>&1'
+    template:
+      src: claim-details-report.sh.j2
+      dest: '/bin/claim-details-report'
+    schedule:
+      hour: 3
+      minute: 0
+      weekday: 1
