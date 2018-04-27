@@ -183,7 +183,7 @@ psql -d claimstore -c "${CCJS_QUERY}" > "${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME}"
 CCJS_COUNT=$(awk '{if (NR!=1) {print}}' ${OUTPUT_DIR}/${CCJS_OUTPUT_FILE_NAME} | wc -l)
 log "Finished submitted County Court Judgements query, there were ${CCJS_COUNT} CCJs submitted since ${REPORT_FROM_DATE}"
 
-log "Calculating numbers  of offers attempted query"
+log "Calculating numbers of offers attempted query"
 NOAT_QUERY=$(cat <<EOF
 COPY (
     SELECT
