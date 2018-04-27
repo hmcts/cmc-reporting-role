@@ -201,7 +201,7 @@ EOF
 psql -d claimstore -c "${NOAT_QUERY}" > "${OUTPUT_DIR}/${NOAT_OUTPUT_FILE_NAME}"
 log "Finished calculating numbers  of offers attempted query"
 
-log "Calculating numbers  of settlement agreed query"
+log "Calculating numbers of settlement agreed query"
 NSAT_QUERY=$(cat <<EOF
 COPY (
     SELECT
