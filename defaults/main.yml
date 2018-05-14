@@ -41,15 +41,6 @@ reporting_jobs:
       hour: 2
       minute: 0
       weekday: 1
-  - name: 'service owner weekly report'
-    job: '/bin/service-owner-report >> /tmp/service-owner-report.log 2>&1'
-    template:
-      src: service-owner-report.sh.j2
-      dest: '/bin/service-owner-report'
-    schedule:
-      hour: 3
-      minute: 0
-      weekday: 1
   - name: 'claim details report'
     job: '/bin/claim-details-report >> /tmp/claim-details-report.log 2>&1'
     template:
