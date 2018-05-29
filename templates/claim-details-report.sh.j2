@@ -139,14 +139,15 @@ log "Calculating number of claims issued per fee band"
 CAFC_QUERY=$(cat <<EOF
 COPY (
     SELECT
-       count(*) AS Total_claim,
-       jsonb_extract_path_text(claim, 'feeCode') AS fee_code
-    FROM
+       round(jsonb_extract_path_text(claim, 'feeAmountInPennies')::DECIMAL / 100, 2) AS Fee_amount,
+       count(1) AS Total_claim
+FROM
       claim
     WHERE
-	  jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
-	  created_at > '${REPORT_FROM_DATE}'
-	  group by fee_code
+          jsonb_extract_path_text(claim, 'claimants') NOT LIKE '%representative%' AND
+          created_at > '${REPORT_FROM_DATE}'
+          group by Fee_amount
+          order by Fee_amount asc
 ) TO STDOUT WITH CSV HEADER
 EOF
 )
