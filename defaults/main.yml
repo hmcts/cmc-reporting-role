@@ -24,14 +24,6 @@ reporting_jobs:
     schedule:
       hour: 2
       minute: 0
-  - name: 'representative fee account report'
-    job: '/bin/representative-fee-account-report >> /tmp/representative-fee-account-report.log 2>&1'
-    template:
-      src: representative-fee-account-report.sh.j2
-      dest: '/bin/representative-fee-account-report'
-    schedule:
-      hour: 2
-      minute: 0
   - name: 'draft count weekly report'
     job: '/bin/draft-count-report >> /tmp/draft-count-report.log 2>&1'
     template:
