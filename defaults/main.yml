@@ -8,14 +8,6 @@ representative_claim_reconciliation_to_address: 'noreply@example.com'
 draft_claim_report_to_address: 'noreply@example.com'
 
 reporting_jobs:
-  - name: 'payment reconciliation'
-    job: '/bin/payment-reconciliation >> /tmp/payment-reconciliation.log 2>&1'
-    template:
-      src: payment-reconciliation.sh.j2
-      dest: '/bin/payment-reconciliation'
-    schedule:
-      hour: 0
-      minute: 30
   - name: 'representative claim reconciliation report'
     job: '/bin/representative-claim-reconciliation-report >> /tmp/representative-claim-reconciliation-report.log 2>&1'
     template:
